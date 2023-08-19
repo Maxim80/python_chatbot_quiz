@@ -64,9 +64,7 @@ def handler_new_question_request(
 
 
 def handler_solution_attempt(
-            update: Update,
-            context: CallbackContext,
-            db: Redis) -> DialogStatus:
+        update: Update, context: CallbackContext, db: Redis) -> DialogStatus:
     user_id = update.effective_user.id
     user_answer = update.message.text
     user_statistics = json.loads(db.get(user_id))
