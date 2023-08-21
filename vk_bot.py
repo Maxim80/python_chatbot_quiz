@@ -1,15 +1,10 @@
 from vk_api.longpoll import VkLongPoll, VkEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 from vk_api.utils import get_random_id
-from config import (
-    VK_TOKEN,
-    REDIS_URL,
-    REDIS_PORT,
-    REDIS_PASSW
-)
 from questions import get_questions, check_answer
+from dotenv import dotenv_values
+from redis import Redis
 import vk_api as vk
-import redis
 import json
 
 
@@ -93,7 +88,9 @@ def handle_counter_request(event, vk_api, keyboard, db):
 
 
 def main():
-    vk_session = vk.VkApi(token=VK_TOKEN)
+    config = dotenv_values('.env')
+
+    vk_session = vk.VkApi(token=config['VK_TOKEN'])
     vk_api = vk_session.get_api()
     longpoll = VkLongPoll(vk_session)
 
@@ -103,10 +100,10 @@ def main():
     keyboard.add_line()
     keyboard.add_button('Мой счет', color=VkKeyboardColor.SECONDARY)
 
-    redis_db = redis.Redis(
-        host=REDIS_URL,
-        port=REDIS_PORT,
-        password=REDIS_PASSW,
+    redis_db = Redis(
+        host=config['REDIS_URL'],
+        port=config['REDIS_PORT'],
+        password=config['REDIS_PASSW'],
     )
 
     questions = get_questions()

@@ -7,18 +7,14 @@ from telegram.ext import (
     ConversationHandler,
     Filters,
 )
-from config import (
-    TELEGRAM_TOKEN,
-    REDIS_URL,
-    REDIS_PORT,
-    REDIS_PASSW,
-)
 from questions import get_questions, check_answer
 from redis import Redis
 from functools import partial
+from dotenv import dotenv_values
 import json
 import logging
 import enum
+
 
 
 logger = logging.getLogger(__name__)
@@ -104,13 +100,16 @@ def handler_counter_request(
 
 
 def main() -> None:
-    updater = Updater(TELEGRAM_TOKEN)
+    config = dotenv_values('.env')
+    print(config)
+
+    updater = Updater(config['TELEGRAM_TOKEN'])
     dispatcher = updater.dispatcher
 
     redis_db = Redis(
-        host=REDIS_URL,
-        port=REDIS_PORT,
-        password=REDIS_PASSW,
+        host=config['REDIS_URL'],
+        port=config['REDIS_PORT'],
+        password=config['REDIS_PASSW'],
     )
 
     questions = get_questions()
