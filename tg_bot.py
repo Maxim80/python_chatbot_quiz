@@ -17,9 +17,7 @@ import enum
 import argparse
 
 
-
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
 
 
 class DialogStatus(enum.Enum):
@@ -38,6 +36,9 @@ def start(update: Update, context: CallbackContext, db: Redis) -> DialogStatus:
         'Привет! Я бот для викторины.',
         reply_markup=markup
     )
+
+    logger.info(f'Пользователь {user_id} начал викторину.')
+
     return DialogStatus.USER_CHOICE
 
 
@@ -101,8 +102,9 @@ def handler_counter_request(
 
 
 def main(questions_dir: str) -> None:
+    logging.basicConfig(level=logging.INFO)
+
     config = dotenv_values('.env')
-    print(config)
 
     updater = Updater(config['TELEGRAM_TOKEN'])
     dispatcher = updater.dispatcher
