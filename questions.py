@@ -5,10 +5,6 @@ import pprint
 QUESTIONS_DIR = 'quiz-questions'
 
 
-def get_files(path_to_files):
-    return os.listdir(path_to_files)
-
-
 def get_file_content(file): 
     with open(f'quiz-questions/{file}', mode='r', encoding='KOI8-R') as file:
         file_content = file.read()
@@ -19,7 +15,7 @@ def get_file_content(file):
 def get_questions():
     questions = {}
 
-    for file in get_files(QUESTIONS_DIR):
+    for file in os.listdir(QUESTIONS_DIR):
         file_content = get_file_content(file)
         ques = [text.split(':')[1].strip() for text in file_content.split('\n\n') if 'Вопрос' in text]
         answ = [text.split(':')[1].strip() for text in file_content.split('\n\n') if 'Ответ:' in text]
