@@ -72,7 +72,6 @@ def handle_surrender_request(event, vk_api, keyboard, questions, db):
         random_id=get_random_id(),
         keyboard=keyboard.get_keyboard(),
     )
-    # handle_new_question_request(event, vk_api, keyboard, questions, db)
 
 
 def handle_counter_request(event, vk_api, keyboard, db):
