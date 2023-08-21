@@ -26,7 +26,7 @@ def get_questions():
     return questions
 
 
-def _answer_normalize(answer):
+def normalization_answer(answer):
     answer = answer.strip(' .').lower()
     index = 0
     for symbol in answer:
@@ -37,6 +37,6 @@ def _answer_normalize(answer):
 
 
 def check_answer(question, user_answer, correct_answer):
-    user_answer = _answer_normalize(user_answer)
-    correct_answer = _answer_normalize(correct_answer)
+    user_answer = normalization_answer(user_answer)
+    correct_answer = normalization_answer(correct_answer)
     return user_answer in correct_answer
