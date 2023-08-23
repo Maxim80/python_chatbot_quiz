@@ -101,7 +101,17 @@ def handler_counter_request(
     return DialogStatus.USER_CHOICE
 
 
-def main(questions_dir: str) -> None:
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description='Чатбот для месенджера Telegram для проведения викторин.'
+    )
+    parser.add_argument(
+        '-p', '--path',
+        default='quiz-questions',
+        help='Путь к директории с вопросами для викторины.'
+    )
+    args = parser.parse_args()
+
     logging.basicConfig(level=logging.INFO)
 
     config = dotenv_values('.env')
@@ -115,7 +125,7 @@ def main(questions_dir: str) -> None:
         password=config['REDIS_PASSW'],
     )
 
-    questions = get_questions(questions_dir)
+    questions = get_questions(args.path)
 
     start_quiz = partial(start, db=redis_db)
     new_question = partial(handler_new_question_request,
@@ -144,13 +154,4 @@ def main(questions_dir: str) -> None:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(
-        description='Чатбот для месенджера Telegram для проведения викторин.'
-    )
-    parser.add_argument(
-        '-p', '--path',
-        default='quiz-questions',
-        help='Путь к директории с вопросами для викторины.'
-    )
-    args = parser.parse_args()
-    main(args.path)
+    main()

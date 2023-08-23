@@ -86,7 +86,17 @@ def handle_counter_request(event, vk_api, keyboard, db):
     )
 
 
-def main(questions_dir):
+def main():
+    parser = argparse.ArgumentParser(
+        description='Чатбот для соц.сети Вконтакте для проведения викторин.'
+    )
+    parser.add_argument(
+        '-p', '--path',
+        default='quiz-questions',
+        help='Путь к директории с вопросами для викторины.'
+    )
+    args = parser.parse_args()
+
     config = dotenv_values('.env')
 
     vk_session = vk.VkApi(token=config['VK_TOKEN'])
@@ -105,7 +115,7 @@ def main(questions_dir):
         password=config['REDIS_PASSW'],
     )
 
-    questions = get_questions(questions_dir)
+    questions = get_questions(args.path)
 
     try:
         for event in longpoll.listen():
@@ -128,14 +138,4 @@ def main(questions_dir):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description='Чатбот для соц.сети Вконтакте для проведения викторин.'
-    )
-    parser.add_argument(
-        '-p', '--path',
-        default='quiz-questions',
-        help='Путь к директории с вопросами для викторины.'
-    )
-    args = parser.parse_args()
-    main(args.path)
-
+    main()
