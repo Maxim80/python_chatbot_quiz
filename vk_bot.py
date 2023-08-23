@@ -6,11 +6,12 @@ from dotenv import dotenv_values
 from redis import Redis
 import vk_api as vk
 import json
+import random
 
 
 def start(event, vk_api, keyboard, db):
     user_id=event.user_id
-    user_statistics =  {'question': None, 'answer': None, 'counter': 0}
+    user_statistics =  {'question': None, 'counter': 0}
     db.set(user_id, json.dumps(user_statistics))
     vk_api.messages.send(
         user_id=user_id,
@@ -23,13 +24,9 @@ def start(event, vk_api, keyboard, db):
 def handle_new_question_request(event, vk_api, keyboard, questions, db):
     user_id = event.user_id
     user_statistics = json.loads(db.get(user_id))
-    try:
-        question, answer = questions.popitem()
-    except KeyError:
-        question = 'Конец викторины. Вы ответили на все вопросы.'
-    else:
-        user_statistics['question'], user_statistics['answer'] = question, answer
-        db.set(user_id, json.dumps(user_statistics))
+    question = random.choice(questions)
+    user_statistics['question'] = question
+    db.set(user_id, json.dumps(user_statistics))
 
     vk_api.messages.send(
         user_id=user_id,
@@ -39,13 +36,12 @@ def handle_new_question_request(event, vk_api, keyboard, questions, db):
     )
 
 
-
 def handle_solution_attempt(event, vk_api, keyboard, questions, db):
     user_id = event.user_id
     user_answer = event.text
     user_statistics = json.loads(db.get(user_id))
     question = user_statistics['question']
-    correct_answer = user_statistics['answer']
+    correct_answer = questions[question]
 
     if check_answer(question, user_answer, correct_answer):
         message = 'Правильно! Поздравляю! Для следующего вопроса нажми "Новый вопрос"'
@@ -65,7 +61,7 @@ def handle_solution_attempt(event, vk_api, keyboard, questions, db):
 def handle_surrender_request(event, vk_api, keyboard, questions, db):
     user_id = event.user_id
     user_statistics = json.loads(db.get(user_id))
-    answer = user_statistics['answer']
+    answer = questions[user_statistics['question']]
     vk_api.messages.send(
         user_id=user_id,
         message=answer,

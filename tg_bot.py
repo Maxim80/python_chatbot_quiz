@@ -9,12 +9,12 @@ from telegram.ext import (
 )
 from questions import get_questions, check_answer
 from redis import Redis
-from functools import partial
 from dotenv import dotenv_values
 import json
 import logging
 import enum
 import argparse
+import random
 
 
 logger = logging.getLogger(__name__)
@@ -24,13 +24,13 @@ class DialogStatus(enum.Enum):
     USER_CHOICE = 0
 
 
-def start(update: Update, context: CallbackContext, db: Redis) -> DialogStatus:
+def start(update: Update, context: CallbackContext) -> DialogStatus:
     reply_keyboard = [['Новый вопрос', 'Сдаться'], ['Мой счет']]
     markup = ReplyKeyboardMarkup(reply_keyboard)
 
     user_id = update.effective_user.id
-    user_statistics = {'question': None, 'answer': None, 'counter': 0}
-    db.set(user_id, json.dumps(user_statistics))
+    user_statistics = {'question': None, 'counter': 0}
+    context.bot_data['db'].set(user_id, json.dumps(user_statistics))
 
     update.message.reply_text(
         'Привет! Я бот для викторины.',
@@ -43,36 +43,29 @@ def start(update: Update, context: CallbackContext, db: Redis) -> DialogStatus:
 
 
 def handler_new_question_request(
-            update: Update,
-            context: CallbackContext,
-            questions: dict,
-            db: Redis) -> DialogStatus:
+                    update: Update, context: CallbackContext) -> DialogStatus:
     user_id = update.effective_user.id
-    user_statistics = json.loads(db.get(user_id))
-    try:
-        question, answer = questions.popitem()
-    except KeyError:
-        question = 'Конец викторины. Вы ответили на все вопросы.'
-    else:
-        user_statistics['question'], user_statistics['answer'] = question, answer
-        db.set(user_id, json.dumps(user_statistics))
-    
+    user_statistics = json.loads(context.bot_data['db'].get(user_id))
+    question = random.choice(list(context.bot_data['questions'].keys()))
+    user_statistics['question'] = question
+    context.bot_data['db'].set(user_id, json.dumps(user_statistics))
     update.message.reply_text(question)
     return DialogStatus.USER_CHOICE
 
 
 def handler_solution_attempt(
-        update: Update, context: CallbackContext, db: Redis) -> DialogStatus:
+                    update: Update, context: CallbackContext) -> DialogStatus:
     user_id = update.effective_user.id
     user_answer = update.message.text
-    user_statistics = json.loads(db.get(user_id))
+    user_statistics = json.loads(context.bot_data['db'].get(user_id))
 
-    question, correct_answer = user_statistics['question'], user_statistics['answer']
+    question = user_statistics['question']
+    correct_answer = context.bot_data['questions'][question]
 
     if check_answer(question, user_answer, correct_answer):
         message = 'Правильно! Поздравляю! Для следующего вопроса нажми "Новый вопрос"'
         user_statistics['counter'] += 1
-        db.set(user_id, json.dumps(user_statistics))
+        context.bot_data['db'].set(user_id, json.dumps(user_statistics))
     else:
         message = 'Неправильно… Попробуешь ещё раз?'
     
@@ -81,22 +74,18 @@ def handler_solution_attempt(
 
 
 def handler_surrender_request(
-            update: Update,
-            context: CallbackContext,
-            db: Redis) -> DialogStatus:
+                    update: Update, context: CallbackContext) -> DialogStatus:
     user_id = update.effective_user.id
-    user_statistics = json.loads(db.get(user_id))
-    question, answer = user_statistics['question'], user_statistics['answer']
+    user_statistics = json.loads(context.bot_data['db'].get(user_id))
+    answer = context.bot_data['questions'][user_statistics['question']]
     update.message.reply_text(answer)
     return DialogStatus.USER_CHOICE
 
 
 def handler_counter_request(
-            update: Update,
-            context: CallbackContext,
-            db: Redis) -> DialogStatus:
+                    update: Update, context: CallbackContext) -> DialogStatus:
     user_id = update.effective_user.id
-    user_statistics = json.loads(db.get(user_id))
+    user_statistics = json.loads(context.bot_data['db'].get(user_id))
     update.message.reply_text(user_statistics['counter'])
     return DialogStatus.USER_CHOICE
 
@@ -116,32 +105,30 @@ def main() -> None:
 
     config = dotenv_values('.env')
 
-    updater = Updater(config['TELEGRAM_TOKEN'])
-    dispatcher = updater.dispatcher
-
     redis_db = Redis(
         host=config['REDIS_URL'],
         port=config['REDIS_PORT'],
         password=config['REDIS_PASSW'],
     )
 
-    questions = get_questions(args.path)
-
-    start_quiz = partial(start, db=redis_db)
-    new_question = partial(handler_new_question_request,
-        questions=questions, db=redis_db)
-    solution_attempt = partial(handler_solution_attempt, db=redis_db)
-    sorrender = partial(handler_surrender_request, db=redis_db)
-    counter = partial(handler_counter_request, db=redis_db)
+    updater = Updater(config['TELEGRAM_TOKEN'])
+    dispatcher = updater.dispatcher
+    dispatcher.bot_data['questions'] = get_questions(args.path)
+    dispatcher.bot_data['db'] = redis_db
 
     conv_handler = ConversationHandler(
-        entry_points = [CommandHandler('start', start_quiz),],
+        entry_points = [CommandHandler('start', start),],
         states = {
             DialogStatus.USER_CHOICE: [
-                MessageHandler(Filters.regex(r'^Новый вопрос$'), new_question),
-                MessageHandler(Filters.regex(r'^Сдаться$'), sorrender),
-                MessageHandler(Filters.regex(r'^Мой счет$'), counter),
-                MessageHandler(Filters.text, solution_attempt),
+                MessageHandler(
+                    Filters.regex(r'^Новый вопрос$'),
+                    handler_new_question_request
+                ),
+                MessageHandler(
+                    Filters.regex(r'^Сдаться$'), handler_surrender_request),
+                MessageHandler(
+                    Filters.regex(r'^Мой счет$'), handler_counter_request),
+                MessageHandler(Filters.text, handler_solution_attempt),
             ]
         },
         fallbacks = [],
